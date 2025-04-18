@@ -1,3 +1,26 @@
+// Package logger 提供一个基于 zap 封装的日志系统，支持多输出、动态级别调整、
+// TraceID 注入、标准日志重定向等特性。
+//
+// 特性：
+//   - 支持多输出目标（stdout, stderr, 文件等）
+//   - 支持 JSON/YAML 配置
+//   - 支持 TraceID 上下文注入
+//   - 支持动态修改日志级别
+//   - 支持标准日志重定向（zap.RedirectStdLog）
+//
+// 示例：
+//
+//	cfgs, _ := logger.GetLoggerCfgByYaml([]byte(`
+//	- output: ["stdout"]
+//	  level: "debug"
+//	  maxsize: 10
+//	  maxbackups: 5
+//	  maxage: 30
+//	  compress: true
+//	`))
+//	log, _ := logger.InitLogger("main", cfgs, 1)
+//	log.Info("Hello world")
+
 package logger
 
 import (
@@ -15,6 +38,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// WarpLog 是日志接口，封装 zap 的功能，支持链式调用和 Trace 注入。
 type WarpLog interface {
 	Debug(msg string, fields ...any)
 	Info(msg string, fields ...any)
@@ -29,6 +53,8 @@ type WarpLog interface {
 	RedirectStdLog()
 	Close()
 }
+
+// TraceLog 提供基于 context 的日志接口，自动注入 traceId。
 type TraceLog interface {
 	Debug(msg string, fields ...any)
 	Info(msg string, fields ...any)
@@ -39,6 +65,7 @@ type TraceLog interface {
 	WithContext(ctx context.Context) TraceLog
 }
 
+// LogLevel 表示日志等级，如 debug/info/warn/error。
 type LogLevel string
 
 func (l *LogLevel) UnmarshalJSON(data []byte) error {
@@ -93,6 +120,7 @@ type contextKey string
 
 const TraceIDKey contextKey = "TraceLogId"
 
+// LoggerCfg 定义日志的配置项，支持输出路径、文件大小、压缩等。
 type LoggerCfg struct {
 	WriterFilePath []string `json:"output" yaml:"output"`         // 输出路径
 	Maxsize        int      `json:"maxsize" yaml:"maxsize"`       // 单个文件最大 MB
@@ -107,6 +135,7 @@ var (
 	loggerLock sync.RWMutex
 )
 
+// GetLoggerCfgByJson 从 JSON 字节读取配置。
 func GetLoggerCfgByJson(data []byte) ([]*LoggerCfg, error) {
 	var cfgs []*LoggerCfg
 	if err := json.Unmarshal(data, &cfgs); err != nil {
@@ -120,6 +149,7 @@ func GetLoggerCfgByJson(data []byte) ([]*LoggerCfg, error) {
 	return cfgs, nil
 }
 
+// GetLoggerCfgByYaml 从 YAML 字节读取配置。
 func GetLoggerCfgByYaml(data []byte) ([]*LoggerCfg, error) {
 	var cfgs []*LoggerCfg
 	if err := yaml.Unmarshal(data, &cfgs); err != nil {
@@ -133,6 +163,7 @@ func GetLoggerCfgByYaml(data []byte) ([]*LoggerCfg, error) {
 	return cfgs, nil
 
 }
+
 func loadLoggerCfgFromFile(path string) ([]*LoggerCfg, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -149,9 +180,13 @@ func loadLoggerCfgFromFile(path string) ([]*LoggerCfg, error) {
 		return nil, fmt.Errorf("unsupported config file: %s", path)
 	}
 }
+
+// InitLogger 使用指定配置初始化一个新的日志实例。
 func InitLogger(tag string, cfg []*LoggerCfg, skipCall int) (WarpLog, error) {
 	return generate(tag, cfg, skipCall)
 }
+
+// InitLoggerFromFile 从配置文件初始化日志（支持 json/yaml）。
 func InitLoggerFromFile(tag string, path string, skipCall int) (WarpLog, error) {
 	cfgs, err := loadLoggerCfgFromFile(path)
 	if err != nil {
@@ -160,6 +195,7 @@ func InitLoggerFromFile(tag string, path string, skipCall int) (WarpLog, error) 
 	return InitLogger(tag, cfgs, skipCall)
 }
 
+// GetLogger 获取已存在的日志实例，若不存在则返回默认 stdout 日志。
 func GetLogger(tag string) WarpLog {
 	loggerLock.RLock()
 	inst := loggerMap[tag]
