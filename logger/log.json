@@ -1,0 +1,23 @@
+[
+  {
+    "output": [
+      "stdout",
+      "./log/info-json.log"
+    ],
+    "level": "info",
+    "maxsize": 20,
+    "maxbackups": 3,
+    "maxage": 5,
+    "compress": false
+  },
+  {
+    "output": [
+      "./log/only-error-json.log"
+    ],
+    "level": "error",
+    "maxsize": 10,
+    "maxbackups": 2,
+    "maxage": 3,
+    "compress": true
+  }
+]
