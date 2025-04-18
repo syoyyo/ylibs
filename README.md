@@ -177,7 +177,6 @@ ctx := context.WithValue(context.Background(), logger.TraceIDKey, "trace-abc-123
 log.WithContextTrace(ctx).Info("用户登录成功", "userId", 42)
 
 log.WithTrace("trace-abc-123").Info("用户注册成功", "userId", 42)
-你也可以将log放到content中传递到其他地方打印
 
 ```
 
